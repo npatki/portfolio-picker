@@ -111,7 +111,7 @@ def get_portfolio_min_risk():
     messages = []
 
     # if a company has a lower return and a higher variance
-    # than another, then it's now worth buying any stocks
+    # than another, then it's not worth buying any stocks
     # from it at the moment
     for i in range(len(companies)-1):
         low_ret = companies[i]
@@ -230,7 +230,7 @@ class Portfolio:
         """ Returns a function that calculates the risk of
         the portfolio given an array x of stock weights. """
 
-        def _variance(x, sign=1.0):
+        def _variance(x):
             out = -val 
 
             for key, covar in self.sigma.items():
@@ -243,7 +243,7 @@ class Portfolio:
                     pos1, pos2 = self._get_pos(key)
                     out += 2*x[pos1]*x[pos2]*covar
 
-            return sign*out
+            return out
 
         return _variance
 
@@ -302,7 +302,7 @@ class Portfolio:
         return _jacobian
 
     def _weight_constraint(self):
-        """ Returns a dictionary reprsenting the constraint that
+        """ Returns a dictionary representing the constraint that
         the total weights of all companies in the portfolio
         must sum to 1. """
 
