@@ -191,7 +191,7 @@ class Portfolio:
         ret = self._fn_return()
 
         # create a constraint to look for the average return
-        # among the stocs we have left
+        # among the stocks we have left
         min_return = min(self.expected_return.values())
         max_return = max(self.expected_return.values())
         return_constraint = {
@@ -211,7 +211,7 @@ class Portfolio:
             constraints=cons
             )
         
-        # make these into a pretty object that to be sent back 
+        # make these into a pretty object to be sent back 
         values = {}
 
         for i in range(len(res.x)):
