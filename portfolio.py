@@ -150,7 +150,8 @@ def get_portfolio_min_risk():
     response = {}
 
     for i in range(11):
-        response[str(i)] = portfolio.get_lowest_risk(i)
+        response['ret %d' % i] = portfolio.get_lowest_risk(i)
+        response['var %d' % i] = portfolio.get_highest_return(i)
 
     return json.dumps(response)
 
@@ -187,8 +188,61 @@ class Portfolio:
         self.expected_return = expected_return
         self.sigma = sigma
 
-    # TODO: also a function for highest return given an accepted
-    # risk level
+    def get_highest_return(self, risk_factor):
+        """ Returns an optimization that maximizes the return for
+        a given risk_factor.
+
+        :param risk_factor: A number in [0, 10] that indicates how
+                            much risk we are willing to take.
+                            0 is the lowest variance of an individual
+                            stock, while 10 is the highest.
+        """
+
+        # functions that tell us the variance & return given weights
+        var = self._fn_variance()
+        ret = self._fn_return()
+
+        # create a constraint to look for a specific variance
+        variances = [self.sigma[key] for key in self.sigma if len(key) == 1]
+        min_variance = min(variances)
+        max_variance = max(variances)
+        delta = (max_variance - min_variance)/10.0
+
+        get_variance = min_variance + (delta*risk_factor)
+
+        variance_constraint = {
+                'type': 'eq',
+                'fun': self._fn_variance(get_variance),
+                'jac': self._fn_variance_jacobian()
+                }
+
+        cons = (self._weight_constraint(), variance_constraint)
+
+        res = minimize(
+            # maximize the returns with these constraints
+            ret,
+            # guess that all weights are equal
+            [1/len(self.tickers)]*len(self.tickers),
+            # maximizing so must inverse the minimizing
+            args=(-1.0,),
+            method='slsqp',
+            jac=self._fn_return_jacobian(),
+            constraints=cons
+            )
+
+        # make these into a pretty object to be sent back
+        values = {}
+
+        for i in range(len(res.x)):
+            values[self.tickers[i]] = res.x[i]
+
+        response = {
+                'values': values,
+                'return': ret(res.x),
+                'variance': var(res.x)
+                }
+
+        return response
 
     def get_lowest_risk(self, profit_factor):
         """ Runs an optimization that minimizes the variance for
