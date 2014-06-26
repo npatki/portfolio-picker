@@ -12,6 +12,8 @@ from scipy.optimize import minimize
 app = Flask(__name__)
 app.debug = True
 
+# TODO: Config file for easy turning of the knobs.
+
 @app.route('/')
 def home():
     # Soon to be the main template
@@ -58,6 +60,9 @@ def get_stock_returns():
 
         returns = []
 
+        # TODO: Moving average?
+        # Or add a smoothening factor to discard the day-to-day
+        # noise in prices
         for i in range(len(daily_close)-1):
             now = daily_close[i]
             tomorrow = daily_close[i+1]
@@ -142,7 +147,12 @@ def get_portfolio_min_risk():
 
     portfolio = Portfolio(tickers, expected_return, sigma)
 
-    return json.dumps(portfolio.get_median_risk())
+    response = {}
+
+    for i in range(11):
+        response[str(i)] = portfolio.get_lowest_risk(i)
+
+    return json.dumps(response)
 
 def covar(a, b):
     """ Given that a and b are lists of daily returns, 
@@ -177,34 +187,46 @@ class Portfolio:
         self.expected_return = expected_return
         self.sigma = sigma
 
-    def get_median_risk(self):
-        """ Runs an optimization. Returns the weights of a portfolio
-        with expected return that is half way between the minimum
-        and maximum paying individual stocks. Minimizes the overall
-        risk as it does so.
+    # TODO: also a function for highest return given an accepted
+    # risk level
+
+    def get_lowest_risk(self, profit_factor):
+        """ Runs an optimization that minimizes the variance for
+        a given profit_factor.
+
+        :param profit_factor: A number in [0, 10] that indicates
+                              how high of a return we want overall
+                              0 is the lowest return of an individual
+                              stock, while 10 is the highest.
         
-        The weight in index i represents the percent of equity
-        in company i of self.tickers wrt the entire portfolio."""
+        :returns A list of length len(self.tickers). Number in index
+                 i represents the weight of company i in self.tickers
+                 (all weights add to 1)
+        """
         
         # functions that tell us the variance & return given weights
         var = self._fn_variance()
         ret = self._fn_return()
 
-        # create a constraint to look for the average return
-        # among the stocks we have left
+        # create a constraint to look for a specific return
         min_return = min(self.expected_return.values())
         max_return = max(self.expected_return.values())
+        delta = (max_return - min_return)/10.0
+
+        get_return = min_return + (delta*profit_factor)
+
         return_constraint = {
                 'type': 'eq',
-                'fun': self._fn_return((min_return + max_return)/2.0),
+                'fun': self._fn_return(get_return),
                 'jac': self._fn_return_jacobian()
                 }
 
         cons = (self._weight_constraint(), return_constraint)
         
-        # minimize the variance with these constraints
         res = minimize(
+            # minimize the variance with these constraints
             var,
+            # guess that all the weights are equal
             [1/len(self.tickers)]*len(self.tickers),
             method='slsqp',
             jac=self._fn_variance_jacobian(),
@@ -220,8 +242,7 @@ class Portfolio:
         response = {
                 'values': values,
                 'return': ret(res.x),
-                'variance': var(res.x),
-                'expected': (min_return+max_return)/2.0
+                'variance': var(res.x)
                 }
         
         return response
