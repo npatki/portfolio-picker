@@ -1,0 +1,19 @@
+<!doctype html>
+<title>Portfolio Picker</title>
+<head>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js">
+    </script>
+    <script type=text/javascript>
+          $URL_ROOT = {{ request.url_root|tojson|safe  }};
+    </script>
+    <script type="text/javascript" src="{{ url_for('static', filename='picker.js')  }}">
+    </script>
+</head>
+<body>
+Hello World!
+    <form>
+        Ticker: <input type="text" name="ticker" id="ticker">
+    </form>
+    <button type="button">Submit</button>
+</body>
+

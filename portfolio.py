@@ -4,6 +4,7 @@ import ystockquote
 
 from collections import namedtuple
 from flask import Flask
+from flask import render_template
 from flask import request
 from numpy import array
 from scipy.optimize import minimize
@@ -16,7 +17,7 @@ app.debug = True
 @app.route('/')
 def home():
     # Soon to be the main template
-    return "Hello world!"
+    return render_template('home.html')
 
 @app.route('/stock')
 def get_stock_returns():
