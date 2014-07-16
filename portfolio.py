@@ -1,6 +1,5 @@
 import datetime
 import json
-import os
 import ystockquote
 
 from collections import namedtuple
@@ -148,10 +147,15 @@ def get_portfolio_min_risk():
     portfolio = Portfolio(tickers, expected_return, sigma)
 
     response = {}
+    fixed_return = {}
+    fixed_risk = {}
 
     for i in range(11):
-        response['ret %d' % i] = portfolio.get_lowest_risk(i)
-        response['var %d' % i] = portfolio.get_highest_return(i)
+        fixed_return[i] = portfolio.get_lowest_risk(i)
+        fixed_risk[i] = portfolio.get_highest_return(i)
+
+    response['fixed_return'] = fixed_return
+    response['fixed_rist'] = fixed_risk
 
     return json.dumps(response)
 
@@ -211,10 +215,10 @@ class Portfolio:
         get_variance = min_variance + (delta*risk_factor)
 
         variance_constraint = {
-                'type': 'eq',
-                'fun': self._fn_variance(get_variance),
-                'jac': self._fn_variance_jacobian()
-                }
+            'type': 'eq',
+            'fun': self._fn_variance(get_variance),
+            'jac': self._fn_variance_jacobian()
+        }
 
         cons = (self._weight_constraint(), variance_constraint)
 
@@ -228,7 +232,7 @@ class Portfolio:
             method='slsqp',
             jac=self._fn_return_jacobian(),
             constraints=cons
-            )
+        )
 
         # make these into a pretty object to be sent back
         values = {}
@@ -237,10 +241,10 @@ class Portfolio:
             values[self.tickers[i]] = res.x[i]
 
         response = {
-                'values': values,
-                'return': ret(res.x),
-                'variance': var(res.x)
-                }
+            'values': values,
+            'return': ret(res.x),
+            'variance': var(res.x)
+        }
 
         return response
 
@@ -270,10 +274,10 @@ class Portfolio:
         get_return = min_return + (delta*profit_factor)
 
         return_constraint = {
-                'type': 'eq',
-                'fun': self._fn_return(get_return),
-                'jac': self._fn_return_jacobian()
-                }
+            'type': 'eq',
+            'fun': self._fn_return(get_return),
+            'jac': self._fn_return_jacobian()
+        }
 
         cons = (self._weight_constraint(), return_constraint)
         
@@ -294,10 +298,10 @@ class Portfolio:
             values[self.tickers[i]] = res.x[i]
 
         response = {
-                'values': values,
-                'return': ret(res.x),
-                'variance': var(res.x)
-                }
+            'values': values,
+            'return': ret(res.x),
+            'variance': var(res.x)
+        }
         
         return response
 
@@ -391,10 +395,10 @@ class Portfolio:
             return array([1]*len(self.tickers))
 
         return {
-                'type': 'eq',
-                'fun': _weight,
-                'jac': _jacobian
-            }
+            'type': 'eq',
+            'fun': _weight,
+            'jac': _jacobian
+        }
 
     def _get_pos(self, fs):
         """ Returns a tuple of indicies in self.tickers that 
