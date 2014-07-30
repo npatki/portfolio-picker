@@ -84,7 +84,14 @@ def get_stock_returns():
 @app.route('/portfolio', methods=['POST'])
 def get_portfolio_min_risk():
     """ Build up the portfolio and find the set of weights
-    for the portfolio with minimum risk (minimum variance)"""
+    for the portfolio with minimum risk (minimum variance)
+    
+    Expect POST data to be in the form:
+    {
+        <ticker name> : [list of values],
+        <ticker name> : [list of values]
+    }
+    """
 
     Company = namedtuple("Company", ["ticker", "expected_return", "variance"])
     companies = []

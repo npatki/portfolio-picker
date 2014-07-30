@@ -1,15 +1,39 @@
 $(function(){
+    var returns = {};
+
     $('#ticker').keypress(function(e){
+
         if(e.which == 13){
+
             e.preventDefault();
-            $.getJSON($URL_ROOT + "stock", {
-                ticker: $("#ticker").val()
-            }, function(data){
-                // TODO: Save this data some where
-                // Maybe also try to get the full company name?
-                console.log(data.results);
+            var symbol = $('#ticker').val();
+
+            $.getJSON($URL_ROOT + 'stock',
+                {
+                    ticker: symbol
+                },
+                function(data){
+                    if(data.results === undefined){
+                        console.log(data.error);
+                    } else {
+                        returns[symbol] = data.results;
+                        $('#companies').append('<li>' + symbol + '</li>');
+                    }
             });
             $(this).val("");
         }
+    });
+
+    $('#submit').click(function(){
+        $.ajax({
+            type: "POST",
+            url: $URL_ROOT + "portfolio",
+            data: JSON.stringify(returns),
+            success: function(data){
+                console.log(data);
+            },
+            contentType: "application/json",
+            dataType: "json"
+        });
     });
 });
