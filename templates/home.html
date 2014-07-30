@@ -11,8 +11,15 @@
 </head>
 <body>
     Ticker: <input type="text" name="ticker" id="ticker">
-    <button type="button" id="submit">Submit</button>
+    <button type="button" id="submit">Optimize!</button>
     <ul id="companies">
     </ul>
+    <div id="results" hidden>
+        <table id="portfolio">
+        </table>
+        Safe<input type="range" id="display" min="0" max="10" value="5">Risky
+        <div>
+            Monthly Expected Return:<div id="metric"></div>
+        </div>
+    </div>
 </body>
-
