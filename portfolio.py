@@ -82,7 +82,7 @@ def get_stock_returns():
         return json.dumps(return_object) 
 
 @app.route('/portfolio', methods=['POST'])
-def get_portfolio_min_risk():
+def get_portfolio():
     """ Build up the portfolio and find the set of weights
     for the portfolio with minimum risk (minimum variance)
     
@@ -141,6 +141,9 @@ def get_portfolio_min_risk():
     tickers.append(name)
     expected_return[name] = ret
     sigma[frozenset([name])] = var
+
+    # TODO: if length is 1, just shortcut
+    # and have 100% of that stock
 
     for ticker_A in tickers:
         for ticker_B in tickers:
