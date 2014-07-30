@@ -38,6 +38,7 @@ $(function(){
                 $('#results').removeAttr('hidden');
                 portfolioData = data;
                 table = $('#portfolio');
+                table.empty();
                 keys = Object.keys(returns);
                 for(var i=0; i<keys.length; i++){
                     row = $('<tr></tr>');
