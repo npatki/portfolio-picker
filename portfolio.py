@@ -234,7 +234,7 @@ class Portfolio:
             # maximize the returns with these constraints
             ret,
             # guess that all weights are equal
-            [1/len(self.tickers)]*len(self.tickers),
+            [1.0/len(self.tickers)]*len(self.tickers),
             # maximizing so must inverse the minimizing
             args=(-1.0,),
             method='slsqp',
@@ -275,7 +275,7 @@ class Portfolio:
         ret = self._fn_return()
 
         # create a constraint to look for a specific return
-        min_return = min(self.expected_return.values())
+        min_return = min([i for i in self.expected_return.values() if i > 0.0])
         max_return = max(self.expected_return.values())
         delta = (max_return - min_return)/10.0
 
@@ -293,7 +293,7 @@ class Portfolio:
             # minimize the variance with these constraints
             var,
             # guess that all the weights are equal
-            [1/len(self.tickers)]*len(self.tickers),
+            [1.0/len(self.tickers)]*len(self.tickers),
             method='slsqp',
             jac=self._fn_variance_jacobian(),
             constraints=cons
