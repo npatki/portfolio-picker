@@ -234,6 +234,10 @@ class Portfolio:
         }
 
         cons = (self._weight_constraint(), variance_constraint)
+        bnds = []
+
+        for i in self.tickers:
+            bnds.append((0, None))
 
         res = minimize(
             # maximize the returns with these constraints
@@ -244,7 +248,8 @@ class Portfolio:
             args=(-1.0,),
             method='slsqp',
             jac=self._fn_return_jacobian(),
-            constraints=cons
+            constraints=cons,
+            bounds=tuple(bnds)
         )
 
         # make these into a pretty object to be sent back
@@ -292,6 +297,10 @@ class Portfolio:
         }
 
         cons = (self._weight_constraint(), return_constraint)
+        bnds = []
+
+        for i in self.tickers:
+            bnds.append((0, None))
         
         res = minimize(
             # minimize the variance with these constraints
@@ -300,8 +309,9 @@ class Portfolio:
             [1.0/len(self.tickers)]*len(self.tickers),
             method='slsqp',
             jac=self._fn_variance_jacobian(),
-            constraints=cons
-            )
+            constraints=cons,
+            bounds=tuple(bnds)
+        )
         
         # make these into a pretty object to be sent back 
         values = {}
