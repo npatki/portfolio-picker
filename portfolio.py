@@ -159,11 +159,13 @@ def get_portfolio_min_risk():
     fixed_risk = {}
 
     for i in range(11):
-        fixed_return[i] = portfolio.get_lowest_risk(i)
-        fixed_risk[i] = portfolio.get_highest_return(i)
+        ret, vals = portfolio.get_lowest_risk(i)
+        fixed_return[ret] = vals
+        std_dev, vals = portfolio.get_highest_return(i)
+        fixed_risk[std_dev] = vals
 
     response['fixed_return'] = fixed_return
-    response['fixed_rist'] = fixed_risk
+    response['fixed_risk'] = fixed_risk
 
     return json.dumps(response)
 
@@ -250,11 +252,10 @@ class Portfolio:
 
         response = {
             'values': values,
-            'return': ret(res.x),
-            'variance': var(res.x)
+            'return': self._get_monthly(ret(res.x)),
         }
 
-        return response
+        return self._get_std_dev(var(res.x)), response
 
     def get_lowest_risk(self, profit_factor):
         """ Runs an optimization that minimizes the variance for
@@ -307,11 +308,10 @@ class Portfolio:
 
         response = {
             'values': values,
-            'return': ret(res.x),
-            'variance': var(res.x)
+            'variance': self._get_std_dev(var(res.x))
         }
         
-        return response
+        return self._get_monthly(ret(res.x)), response
 
     def _fn_variance(self, val=0):
         """ Returns a function that calculates the risk of
@@ -407,6 +407,12 @@ class Portfolio:
             'fun': _weight,
             'jac': _jacobian
         }
+
+    def _get_monthly(self, daily_return):
+        return (1+daily_return)**30 -1
+
+    def _get_std_dev(self, variance):
+        return variance**0.5
 
     def _get_pos(self, fs):
         """ Returns a tuple of indicies in self.tickers that 
