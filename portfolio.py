@@ -142,9 +142,6 @@ def get_portfolio():
     expected_return[name] = ret
     sigma[frozenset([name])] = var
 
-    # TODO: if length is 1, just shortcut
-    # and have 100% of that stock
-
     for ticker_A in tickers:
         for ticker_B in tickers:
 
@@ -158,19 +155,23 @@ def get_portfolio():
     portfolio = Portfolio(tickers, expected_return, sigma)
 
     response = {}
-    fixed_return = {}
-    fixed_risk = {}
+    fixed_return = []
+    fixed_risk = []
 
     for i in range(11):
-        ret, vals = portfolio.get_lowest_risk(i)
-        fixed_return[ret] = vals
-        std_dev, vals = portfolio.get_highest_return(i)
-        fixed_risk[std_dev] = vals
+        fixed_return.append(portfolio.get_lowest_risk(i))
+        fixed_risk.append(portfolio.get_highest_return(i))
 
     response['fixed_return'] = fixed_return
     response['fixed_risk'] = fixed_risk
 
     return json.dumps(response)
+
+def _get_monthly(daily_return):
+    return (1+daily_return)**30 -1
+
+def _get_std_dev(variance):
+    return variance**0.5
 
 def covar(a, b):
     """ Given that a and b are lists of daily returns, 
@@ -260,10 +261,11 @@ class Portfolio:
 
         response = {
             'values': values,
-            'return': self._get_monthly(ret(res.x)),
+            'return': _get_monthly(ret(res.x)),
+            'risk': _get_std_dev(var(res.x))
         }
 
-        return self._get_std_dev(var(res.x)), response
+        return response
 
     def get_lowest_risk(self, profit_factor):
         """ Runs an optimization that minimizes the variance for
@@ -283,13 +285,25 @@ class Portfolio:
         var = self._fn_variance()
         ret = self._fn_return()
 
-        # create a constraint to look for a specific return
-        min_return = min([i for i in self.expected_return.values() if i > 0.0])
-        max_return = max(self.expected_return.values())
+        pos_ret = [i for i in self.expected_return.values() if i > 0.0]
+
+        # edge case: when all returns are negative, just choose
+        # the least negative one and return a portfolio with 100% of that
+        if len(pos_ret) == 0:
+            best_option = max(self.expected_return, key=self.expected_return.get)
+            return self._single_stock_portfolio(
+                best_option,
+                _get_monthly(self.expected_return[best_option]),
+                _get_std_dev(self.sigma[frozenset([best_option])])
+            )
+
+        min_return = min(pos_ret)
+        max_return = max(pos_ret)
         delta = (max_return - min_return)/10.0
 
         get_return = min_return + (delta*profit_factor)
 
+        # create a constraint to look for a specific return
         return_constraint = {
             'type': 'eq',
             'fun': self._fn_return(get_return),
@@ -321,10 +335,22 @@ class Portfolio:
 
         response = {
             'values': values,
-            'variance': self._get_std_dev(var(res.x))
+            'risk': _get_std_dev(var(res.x)),
+            'return': _get_monthly(ret(res.x))
         }
         
-        return self._get_monthly(ret(res.x)), response
+        return response
+
+    def _single_stock_portfolio(self, name, ret, var):
+        values = {}
+        for symbol in self.tickers:
+            values[symbol] = 0.0
+        values[name] = 1.0
+        return {
+            'values': values,
+            'risk': _get_std_dev(var),
+            'return': _get_monthly(ret)
+        }
 
     def _fn_variance(self, val=0):
         """ Returns a function that calculates the risk of
@@ -420,12 +446,6 @@ class Portfolio:
             'fun': _weight,
             'jac': _jacobian
         }
-
-    def _get_monthly(self, daily_return):
-        return (1+daily_return)**30 -1
-
-    def _get_std_dev(self, variance):
-        return variance**0.5
 
     def _get_pos(self, fs):
         """ Returns a tuple of indicies in self.tickers that 

@@ -30,6 +30,9 @@ $(function(){
     });
 
     $('#submit').click(function(){
+        if(Object.keys(returns).length === 0){
+            return
+        }
         $.ajax({
             type: "POST",
             url: $URL_ROOT + "portfolio",
@@ -47,8 +50,7 @@ $(function(){
                     table.append(row);
                 }
                 show = parseInt($("#display").attr("value"));
-                want = Object.keys(data['fixed_risk']).sort()[5];
-                displayReturn(want);
+                displayReturn(5);
             },
             contentType: "application/json",
             dataType: "json"
@@ -57,8 +59,7 @@ $(function(){
 
     $('#display').change(function(){
         index = parseInt($(this).val());
-        want = Object.keys(portfolioData['fixed_risk']).sort()[index];
-        displayReturn(want);
+        displayReturn(index);
     });
 
     function displayReturn(i){
