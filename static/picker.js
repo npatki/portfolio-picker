@@ -48,8 +48,8 @@ $(function(){
 
                 ret = portfolioData['fixed_risk'][show]['return'];
                 risk = portfolioData['fixed_risk'][show]['risk'];
-                $('#return').html(format(ret));
-                $('#risk').html(format(risk));
+                $('#return').html(format(ret, false));
+                $('#risk').html(format(risk, false));
 
                 showData = portfolioData['fixed_risk'][show]['values'];
                 for(var i=0; i<keys.length; i++){
@@ -77,12 +77,16 @@ $(function(){
     }
 
     // format the percentage
-    function format(num){
+    function format(num, pos){
+        round = pos;
+        if(pos === undefined){
+            round = true;
+        }
         val = (parseFloat(num)*100).toFixed(2);
-        if(val < 0){
+        if(val <= 0 && round){
             val = parseFloat(0.0).toFixed(2);
         }
-        if(val > 100){
+        if(val >= 100 && round){
             val = parseFloat(100.0).toFixed(2);
         }
         return val + '%';
@@ -92,8 +96,8 @@ $(function(){
     function sliderChanged(i){
        ret = portfolioData['fixed_risk'][i]['return'];
        risk = portfolioData['fixed_risk'][i]['risk'];
-       $('#return').html(format(ret));
-       $('#risk').html(format(risk));
+       $('#return').html(format(ret, false));
+       $('#risk').html(format(risk, false));
 
        showData = portfolioData['fixed_risk'][i]['values'];
        keys = Object.keys(showData);
