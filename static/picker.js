@@ -1,3 +1,5 @@
+// TODO: Run optimization as soon as a valid ticker symbol is entered.
+// Populate immediately.
 $(function(){
     var returns = {};
     var portfolioData;
@@ -34,8 +36,8 @@ $(function(){
             return
         }
         $.ajax({
-            type: "POST",
-            url: $URL_ROOT + "portfolio",
+            type: 'POST',
+            url: $URL_ROOT + 'portfolio',
             data: JSON.stringify(returns),
             success: function(data){
                 $('#results').removeAttr('hidden');
@@ -49,11 +51,11 @@ $(function(){
                     row.append('<td class=num symbol='+ keys[i] + '>0</td>');
                     table.append(row);
                 }
-                show = parseInt($("#display").attr("value"));
+                show = parseInt($('#display').attr('value'));
                 displayReturn(5);
             },
-            contentType: "application/json",
-            dataType: "json"
+            contentType: 'application/json',
+            dataType: 'json'
         });
     });
 
@@ -62,16 +64,18 @@ $(function(){
         displayReturn(index);
     });
 
+    // display the data in the table
     function displayReturn(i){
         data = portfolioData['fixed_risk'][i]['values'];
         num = portfolioData['fixed_risk'][i]['return'];
         for(var symbol in data){
             obj = $('.num[symbol=' + symbol + ']');
-            $(obj[0]).html(Number(data[symbol]*100).toFixed(2) + "%");
+            $(obj[0]).html(Number(data[symbol]*100).toFixed(2) + '%');
         }
-        $('#metric').html(Number(num*100).toFixed(2) + "%");
+        $('#metric').html(Number(num*100).toFixed(2) + '%');
     };
 
+    // remove symbol after button x has been clicked
     function removeSymbol(){
         symbol = $(this).parent().attr('symbol');
         delete returns[symbol];
