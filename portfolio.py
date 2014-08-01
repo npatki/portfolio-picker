@@ -154,6 +154,7 @@ def get_portfolio():
 
     portfolio = Portfolio(tickers, expected_return, sigma)
 
+    # TODO: integrate fixed return functionality with frontend
     response = {}
     fixed_return = []
     fixed_risk = []
@@ -206,6 +207,19 @@ class Portfolio:
         self.expected_return = expected_return
         self.sigma = sigma
 
+        variances = [self.sigma[key] for key in self.sigma if len(key) == 1]
+        self.min_variance = min(variances)
+        self.delta_variance = (max(variances) - self.min_variance)/10.0
+
+        # set the min to 0 if it's actually a negative return
+        # the optimization may not be feasible with positive bounds
+        # but at least this will force the least possible min
+        min_overall = min(self.expected_return.values())
+        self.min_return = max(min_overall, 0)
+        max_overall = max(self.expected_return.values())
+        self.delta_return = (max(max_overall, 0) - self.min_return)/10.0
+
+
     def get_highest_return(self, risk_factor):
         """ Returns an optimization that maximizes the return for
         a given risk_factor.
@@ -221,12 +235,7 @@ class Portfolio:
         ret = self._fn_return()
 
         # create a constraint to look for a specific variance
-        variances = [self.sigma[key] for key in self.sigma if len(key) == 1]
-        min_variance = min(variances)
-        max_variance = max(variances)
-        delta = (max_variance - min_variance)/10.0
-
-        get_variance = min_variance + (delta*risk_factor)
+        get_variance = self.min_variance + (self.delta_variance*risk_factor)
 
         variance_constraint = {
             'type': 'eq',
@@ -297,11 +306,7 @@ class Portfolio:
                 _get_std_dev(self.sigma[frozenset([best_option])])
             )
 
-        min_return = min(pos_ret)
-        max_return = max(pos_ret)
-        delta = (max_return - min_return)/10.0
-
-        get_return = min_return + (delta*profit_factor)
+        get_return = self.min_return + (self.delta_return*profit_factor)
 
         # create a constraint to look for a specific return
         return_constraint = {
