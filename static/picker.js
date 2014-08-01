@@ -17,7 +17,11 @@ $(function(){
                         console.log(data.error);
                     } else {
                         returns[symbol] = data.results;
-                        $('#slider').prop('disabled', false);
+                        if(Object.keys(returns).length < 2){
+                            $('#slider').prop('disabled', true);
+                        } else {
+                            $('#slider').prop('disabled', false);
+                        }
                         optimizePortfolio();
                     }
             });
@@ -33,7 +37,9 @@ $(function(){
     // optimize current results
     function optimizePortfolio(){
         if(Object.keys(returns).length == 0){
-           return 
+            $('#return').html('');
+            $('#risk').html('');
+            return
         }
         $.ajax({
             type: 'POST',
@@ -113,8 +119,7 @@ $(function(){
     function removeSymbol(){
         symbol = $(this).parent().parent().attr('symbol');
         delete returns[symbol];
-        keys = Object.keys(returns);
-        if(keys.length === 0){
+        if(Object.keys(returns).length < 2){
             $('#slider').prop('disabled', true);
         }
         $(this).parent().parent().remove();
