@@ -1,5 +1,3 @@
-// TODO: Run optimization as soon as a valid ticker symbol is entered.
-// Populate immediately.
 $(function(){
     var returns = {};
     var portfolioData;
@@ -11,75 +9,111 @@ $(function(){
             e.preventDefault();
             var symbol = $('#ticker').val();
 
-            $.getJSON($URL_ROOT + 'stock',
-                {
-                    ticker: symbol
-                },
+            $.getJSON(
+                $URL_ROOT + 'stock',
+                { ticker: symbol},
                 function(data){
                     if(data.results === undefined){
                         console.log(data.error);
                     } else {
                         returns[symbol] = data.results;
-                        symbolLi = $('<li symbol=' + symbol + '>' + symbol + '</li>');
-                        symbolB = $('<button type="button">x</button>');
-                        symbolB.click(removeSymbol);
-                        symbolLi.append(symbolB);
-                        $('#companies').append(symbolLi);
+                        $('#slider').prop('disabled', false);
+                        optimizePortfolio();
                     }
             });
             $(this).val("");
         }
     });
 
-    $('#submit').click(function(){
-        if(Object.keys(returns).length === 0){
-            return
+    $('#slider').change(function(){
+        index = parseInt($(this).val());
+        sliderChanged(index);
+    });
+
+    // optimize current results
+    function optimizePortfolio(){
+        if(Object.keys(returns).length == 0){
+           return 
         }
         $.ajax({
             type: 'POST',
             url: $URL_ROOT + 'portfolio',
             data: JSON.stringify(returns),
             success: function(data){
-                $('#results').removeAttr('hidden');
                 portfolioData = data;
-                table = $('#portfolio');
+                table = $('#results');
                 table.empty();
                 keys = Object.keys(returns);
+                show = parseInt($('#slider').val());
+
+                ret = portfolioData['fixed_risk'][show]['return'];
+                risk = portfolioData['fixed_risk'][show]['risk'];
+                $('#return').html(format(ret));
+                $('#risk').html(format(risk));
+
+                showData = portfolioData['fixed_risk'][show]['values'];
                 for(var i=0; i<keys.length; i++){
-                    row = $('<tr></tr>');
-                    row.append('<td symbol=' + keys[i] + '>' + keys[i] + '</td>');
-                    row.append('<td class=num symbol='+ keys[i] + '>0</td>');
+                    name = keys[i];
+                    row = $('<tr symbol="' + name + '"></tr>');
+                    row.append('<td>' + name + '</td>');
+                    if(name in showData){
+                        data = $('<td class="data"></td>');
+                        data.html(format(showData[name]));
+                        row.append(data);
+                    } else {
+                        row.append('<td class="data">' + format("0") + '</td>');
+                    }
+                    last_col = $('<td></td>');
+                    button = $('<button type="button">x</button>');
+                    button.click(removeSymbol);
+                    last_col.append(button);
+                    row.append(last_col);
                     table.append(row);
                 }
-                show = parseInt($('#display').attr('value'));
-                displayReturn(5);
             },
             contentType: 'application/json',
-            dataType: 'json'
+            dataType: 'json' 
         });
-    });
+    }
 
-    $('#display').change(function(){
-        index = parseInt($(this).val());
-        displayReturn(index);
-    });
-
-    // display the data in the table
-    function displayReturn(i){
-        data = portfolioData['fixed_risk'][i]['values'];
-        num = portfolioData['fixed_risk'][i]['return'];
-        for(var symbol in data){
-            obj = $('.num[symbol=' + symbol + ']');
-            $(obj[0]).html(Number(data[symbol]*100).toFixed(2) + '%');
+    // format the percentage
+    function format(num){
+        val = (parseFloat(num)*100).toFixed(2);
+        if(val < 0){
+            val = parseFloat(0.0).toFixed(2);
         }
-        $('#metric').html(Number(num*100).toFixed(2) + '%');
-    };
+        if(val > 100){
+            val = parseFloat(100.0).toFixed(2);
+        }
+        return val + '%';
+    }
+
+    // user has moved the slider to position i
+    function sliderChanged(i){
+       ret = portfolioData['fixed_risk'][i]['return'];
+       risk = portfolioData['fixed_risk'][i]['risk'];
+       $('#return').html(format(ret));
+       $('#risk').html(format(risk));
+
+       showData = portfolioData['fixed_risk'][i]['values'];
+       keys = Object.keys(showData);
+       for(var i=0; i<keys.length; i++){
+           ticker = keys[i];
+           row = $('tr[symbol=' + ticker + ']')[0];
+           data = $(row).find('.data')[0];
+           $(data).html(format(showData[ticker]));
+       }
+    }
 
     // remove symbol after button x has been clicked
     function removeSymbol(){
-        symbol = $(this).parent().attr('symbol');
+        symbol = $(this).parent().parent().attr('symbol');
         delete returns[symbol];
-        $(this).parent().remove();
+        keys = Object.keys(returns);
+        if(keys.length === 0){
+            $('#slider').prop('disabled', true);
+        }
+        $(this).parent().parent().remove();
+        optimizePortfolio();
     };
-
 });
