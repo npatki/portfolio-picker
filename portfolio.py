@@ -125,22 +125,22 @@ def get_portfolio():
     # if a company has a lower return and a higher variance
     # than another, then it's not worth buying any stocks
     # from it at the moment
-    for i in range(len(companies)-1):
-        low_ret = companies[i]
-        high_ret = companies[i+1]
-
-        if low_ret.variance < high_ret.variance:
-            name, ret, var = low_ret
+    for i in range(len(companies)):
+        add = True
+        for j in range(len(companies)):
+            if i == j:
+                continue
+            a = companies[i]
+            b = companies[j]
+            if a.expected_return < b.expected_return:
+                if a.variance > b.variance:
+                    add = False
+                    break
+        if add:
+            name, ret, var = companies[i]
             tickers.append(name)
             expected_return[name] = ret
             sigma[frozenset([name])] = var
-
-    # it may always be worth buying stocks from the
-    # company with the highest return
-    name, ret, var = companies[-1]
-    tickers.append(name)
-    expected_return[name] = ret
-    sigma[frozenset([name])] = var
 
     for ticker_A in tickers:
         for ticker_B in tickers:
@@ -207,9 +207,9 @@ class Portfolio:
         self.expected_return = expected_return
         self.sigma = sigma
 
-        variances = [self.sigma[key] for key in self.sigma if len(key) == 1]
-        self.min_variance = min(variances)
-        self.delta_variance = (max(variances) - self.min_variance)/10.0
+        self.min_variance = self._get_lowest_variance()
+        self.max_variance = self._get_highest_variance()
+        self.delta_variance = (self.max_variance - self.min_variance)/10.0
 
         # set the min to 0 if it's actually a negative return
         # the optimization may not be feasible with positive bounds
@@ -219,6 +219,17 @@ class Portfolio:
         max_overall = max(self.expected_return.values())
         self.delta_return = (max(max_overall, 0) - self.min_return)/10.0
 
+    def _get_highest_variance(self):
+        max_variance = max([self.sigma[key] for key in self.sigma if len(key) == 1])
+        out = self.get_highest_return(-1)
+        max_variance = max(max_variance, out['risk']**2)
+        return max_variance
+
+    def _get_lowest_variance(self):
+        min_variance = min([self.sigma[key] for key in self.sigma if len(key) == 1])
+        out = self.get_lowest_risk(-1)
+        min_variance = min(min_variance, out['risk']**2)
+        return min_variance
 
     def get_highest_return(self, risk_factor):
         """ Returns an optimization that maximizes the return for
@@ -235,19 +246,22 @@ class Portfolio:
         ret = self._fn_return()
 
         # create a constraint to look for a specific variance
-        get_variance = self.min_variance + (self.delta_variance*risk_factor)
+        if risk_factor >= 0:
+            get_variance = self.min_variance + (self.delta_variance*risk_factor)
 
-        variance_constraint = {
-            'type': 'eq',
-            'fun': self._fn_variance(get_variance),
-            'jac': self._fn_variance_jacobian()
-        }
+            variance_constraint = {
+                'type': 'eq',
+                'fun': self._fn_variance(get_variance),
+                'jac': self._fn_variance_jacobian()
+            }
 
-        cons = (self._weight_constraint(), variance_constraint)
+            cons = (self._weight_constraint(), variance_constraint)
+        else:
+            cons = (self._weight_constraint(),)
+
         bnds = []
-
         for i in self.tickers:
-            bnds.append((0, None))
+            bnds.append((0.0, None))
 
         res = minimize(
             # maximize the returns with these constraints
@@ -306,20 +320,23 @@ class Portfolio:
                 _get_std_dev(self.sigma[frozenset([best_option])])
             )
 
-        get_return = self.min_return + (self.delta_return*profit_factor)
+        if profit_factor >= 0:
+            get_return = self.min_return + (self.delta_return*profit_factor)
 
-        # create a constraint to look for a specific return
-        return_constraint = {
-            'type': 'eq',
-            'fun': self._fn_return(get_return),
-            'jac': self._fn_return_jacobian()
-        }
+            # create a constraint to look for a specific return
+            return_constraint = {
+                'type': 'eq',
+                'fun': self._fn_return(get_return),
+                'jac': self._fn_return_jacobian()
+            }
 
-        cons = (self._weight_constraint(), return_constraint)
+            cons = (self._weight_constraint(), return_constraint)
+        else:
+            cons = (self._weight_constraint(),)
+
         bnds = []
-
         for i in self.tickers:
-            bnds.append((0, None))
+            bnds.append((0.0, None))
         
         res = minimize(
             # minimize the variance with these constraints
