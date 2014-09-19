@@ -16,21 +16,25 @@ app.debug = True
 
 @app.route('/')
 def home():
-    # Soon to be the main template
+    # TODO make make template
     return render_template('home.html')
 
 @app.route('/stock')
-def get_stock_returns():
+def _get_stock_returns():
+    """ A wrapper for flask to ask get stock returns for a
+    a particular ticker symbol."""
+    value = get_stock_returns(request.args.get('ticker', ''))
+    return json.dumps(value)
+
+def get_stock_returns(ticker):
     """ Given args ticker=<symbol>, looks up the Yahoo!
     historical data for the company. Calculate the daily
     returns for it."""
-
     return_object = {}
-    ticker = request.args.get('ticker', '')
 
     if ticker is None or ticker == '':
         return_object['error'] = 'No symbol given.'
-        return json.dumps(return_object)
+        return return_object
     
     # look at last quarter of data
     now = datetime.datetime.now()
@@ -42,21 +46,20 @@ def get_stock_returns():
     try:
         # grab quotes from Yahoo! finance
         historical = ystockquote.get_historical_prices(
-                ticker,
-                before_string,
-                now_string)
+            ticker,
+            before_string,
+            now_string)
 
         # use adjusted close for calculating
         # daiy returns
         daily_close = [
-                float(stats['Adj Close'])
-                for date, stats
-                in historical.items()
-                ]
+            float(stats['Adj Close'])
+            for date, stats
+            in historical.items()]
 
         if len(daily_close) < 3:
             return_object['error'] = 'Too few data points.'
-            return json.dumps(return_object)
+            return return_object
 
         returns = []
 
@@ -74,31 +77,63 @@ def get_stock_returns():
         returns.reverse()
 
         return_object['results'] = returns
-        return json.dumps(return_object)
+        return return_object
 
     # Yahoo! doesn't respond, ticker not given/valid
     except:
         return_object['error'] = 'Not a valid ticker.'
-        return json.dumps(return_object) 
+        return return_object
 
 @app.route('/portfolio', methods=['POST'])
-def get_portfolio():
-    """ Build up the portfolio and find the set of weights
+def _optimize():
+    """ Build up the portfolio and find a set of weights
     for the portfolio with minimum risk (minimum variance)
     
     Expect POST data to be in the form:
     {
-        <ticker name> : [list of values],
-        <ticker name> : [list of values]
+        <ticker name>: [list of values],
+        <ticker name>: [list of values],
+        ...
     }
+    """
+    return json.dumps(optimize(request.json))
+
+def optimize(data):
+    """ Perform the actual optimization of a porfolio for various
+    levels of risk.
+    :param data: Data describing the stock data, should be in the form:
+            {
+                <ticker name>: [list of returns],
+                <ticker name>: [list of returns],
+                ...
+            }
+
+    :returns an object describing the results for different levels
+             of fixed risk. Is of the following format:
+             {
+                'fixed_risk': [
+                    {
+                        'return': <expected return>,
+                        'values': {
+                            <ticker name>: <proportion>,
+                            <ticker name>: <proportion>,
+                            ...
+                        },
+                        'risk': <std deviation>
+                    },
+                    ...
+                ]
+             }
+             The list 'fixed_risk' shows results in order of increasing
+             risk. There are currently a total of 10 levels.
     """
 
     Company = namedtuple("Company", ["ticker", "expected_return", "variance"])
     companies = []
 
     # create temp company object to track info
-    for ticker in request.json:
-        returns = request.json[ticker]
+    for ticker in data:
+        returns = data[ticker]
         company = Company(ticker=ticker,
             expected_return=(reduce(lambda x,y: x+y, returns)/len(returns)),
             variance=covar(returns,returns))
@@ -145,8 +180,8 @@ def get_portfolio():
     for ticker_A in tickers:
         for ticker_B in tickers:
 
-            returns_A = request.json[ticker_A]
-            returns_B = request.json[ticker_B]
+            returns_A = data[ticker_A]
+            returns_B = data[ticker_B]
             key = frozenset([ticker_A, ticker_B])
 
             if key not in sigma:
@@ -156,17 +191,15 @@ def get_portfolio():
 
     # TODO: integrate fixed return functionality with frontend
     response = {}
-    fixed_return = []
     fixed_risk = []
 
     for i in range(11):
-        fixed_return.append(portfolio.get_lowest_risk(i))
-        fixed_risk.append(portfolio.get_highest_return(i))
+        a = portfolio.get_highest_return(i)
+        fixed_risk.append(a)
 
-    response['fixed_return'] = fixed_return
     response['fixed_risk'] = fixed_risk
 
-    return json.dumps(response)
+    return response
 
 def _get_monthly(daily_return):
     return (1+daily_return)**30 -1
@@ -188,6 +221,26 @@ def covar(a, b):
         total += (a-avg_A)*(b-avg_B)
     return total/(len(points)-1)
 
+def allocate(stock_names):
+    """ API point for backend. Performs the same function as frontend.
+    :param stock_names: a list of string stock ticker symbols we wish
+                        to put in a portfolio
+    :returns the result of calling get_portfolio for the returns given
+             by stock_names.
+             Returns 'Error' if something goes wrong."""
+    data = {}
+    for name in stock_names:
+        try:
+            if name in data:
+                continue
+            result = get_stock_returns(name)
+            data[name] = result['results']
+        except:
+            continue
+    try:
+        return optimize(data)
+    except:
+        return 'Error'
 
 class Portfolio:
 
@@ -206,6 +259,8 @@ class Portfolio:
         self.tickers = tickers
         self.expected_return = expected_return
         self.sigma = sigma
+        self.max_result = None
+        self.min_result = None
 
         self.min_variance = self._get_lowest_variance()
         self.max_variance = self._get_highest_variance()
@@ -219,16 +274,27 @@ class Portfolio:
         max_overall = max(self.expected_return.values())
         self.delta_return = (max(max_overall, 0) - self.min_return)/10.0
 
+
     def _get_highest_variance(self):
         max_variance = max([self.sigma[key] for key in self.sigma if len(key) == 1])
         out = self.get_highest_return(-1)
-        max_variance = max(max_variance, out['risk']**2)
+        if out['risk']**2 > max_variance:
+            max_variance = out['risk'] ** 2
+            self.max_result = out
         return max_variance
 
     def _get_lowest_variance(self):
-        min_variance = min([self.sigma[key] for key in self.sigma if len(key) == 1])
+        try:
+            min_variance = min([self.sigma[key] for key in self.sigma
+                if len(key) == 1 and self.expected_return[list(key)[0]] > 0])
+        except ValueError:
+            min_variance = None
         out = self.get_lowest_risk(-1)
-        min_variance = min(min_variance, out['risk']**2)
+
+        if min_variance is None or out['risk']**2 < min_variance:
+            min_variance = out['risk']**2
+            self.min_result = out
+
         return min_variance
 
     def get_highest_return(self, risk_factor):
@@ -245,6 +311,11 @@ class Portfolio:
         var = self._fn_variance()
         ret = self._fn_return()
 
+        if risk_factor == 0 and self.min_result is not None:
+            return self.min_result
+        if risk_factor == 10 and self.max_result is not None:
+            return self.max_result
+
         # create a constraint to look for a specific variance
         if risk_factor >= 0:
             get_variance = self.min_variance + (self.delta_variance*risk_factor)
@@ -258,6 +329,7 @@ class Portfolio:
             cons = (self._weight_constraint(), variance_constraint)
         else:
             cons = (self._weight_constraint(),)
+
 
         bnds = []
         for i in self.tickers:
@@ -332,7 +404,12 @@ class Portfolio:
 
             cons = (self._weight_constraint(), return_constraint)
         else:
-            cons = (self._weight_constraint(),)
+            zero_return = {
+                'type': 'ineq',
+                'fun': self._fn_return(0.0),
+                'jac': self._fn_return_jacobian()
+            }
+            cons = (self._weight_constraint(), zero_return)
 
         bnds = []
         for i in self.tickers:
@@ -360,7 +437,7 @@ class Portfolio:
             'risk': _get_std_dev(var(res.x)),
             'return': _get_monthly(ret(res.x))
         }
-        
+
         return response
 
     def _single_stock_portfolio(self, name, ret, var):
