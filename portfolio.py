@@ -12,11 +12,11 @@ from scipy.optimize import minimize
 app = Flask(__name__)
 app.debug = True
 
-# TODO: Config file for easy turning of the knobs.
+# TODO: Config file for easy tuning of the knobs.
 
 @app.route('/')
 def home():
-    # TODO make make template
+    # TODO make template
     return render_template('home.html')
 
 @app.route('/stock')

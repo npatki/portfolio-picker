@@ -80,7 +80,7 @@ This is apparent when adding more and more stocks to a portfolio. The safest pos
 ### What are the constraints on the allocation values?
 All the allocation values of the individual stocks will always add up to 1 for the portfolio. This corresponds to splitting 100% of the portfolio among the given stocks. 
 
-Furthermore, the allocation for a single stock will be in the range [0, 1]. This means that no short-selling is possible. I plan to add a toggle in the future that will allow the user to turn on short-selling. This will mean allocations can be negative (corresponding to short selling the stock) or >1 (corresponding to buying more of the stock with the extra capital from short-selling).
+For a single stock, the allocation will be in the range [0, 1]. This means that no short-selling is possible. I plan to add a toggle in the future that will allow the user to turn on short-selling. This will mean allocations can be negative (corresponding to short selling the stock) or >1 (corresponding to buying more of the stock with the extra capital from short-selling).
 
 ### Why do some stocks have an allocation of 0 for all risk levels?
 Part of optimizing means that it is unwise to buy certain stocks. For example, consider the following stocks:
@@ -91,7 +91,7 @@ Part of optimizing means that it is unwise to buy certain stocks. For example, c
 | B | 1% | 6% |
 | C | 3% | 7% | 
 
-In this case, stock A is strictly better than C because it has a higher return for a lower risk . Therefore, the proportion of C is always 0 while the risk-return tradeoff comes only from varying A and B.
+In this case, stock A is strictly better than B because it has a higher return for a lower risk . Therefore, the proportion of B is always 0 while the risk-return tradeoff comes only from varying A and C.
 
 In general, a stock with greater risk is expected to have greater return!
 
